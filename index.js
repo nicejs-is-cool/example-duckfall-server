@@ -14,12 +14,14 @@ const addons = [];
 const _serverglobals = {
 	users: {},
 	serverNickname: "~",
-	serverColor: "white"
+	serverColor: "white",
+	disabledPlugins: []
 };
 fs.readFile("./config.json").then(configraw => {
 	const config = JSON.parse(configraw);
 	_serverglobals.serverNickname = config.serverNickname;
 	_serverglobals.serverColor = config.serverColor;
+	_serverglobals.disabledPlugins = config.disabledPlugins;
 }).catch(err => debug.fail('Unable to read config.json -',err));
 
 const debug = {
@@ -55,8 +57,9 @@ const debug = {
 	*/
 	if (adir) {
 		for (let addon of adir) {
+			if (!_serverglobals.disabledPlugins.includes(addon.slice(0,-3))) continue;
 			let raddon = require("./"+path.join("./plugins/",addon));
-			addons.push(raddon);
+			addons.push({...raddon, id: addon.slice(0,-3)});
 			debug.ok(`${colors.yellow("Plugins")} Loaded "${raddon.name}" v${raddon.version}`);
 		}
 	}
@@ -72,6 +75,7 @@ io.on('connection', socket => {
 		socket.on(handler, handlers[handler].bind(this, {socket, _serverglobals, io}));
 	}
 	for (let addon of addons) {
+		if (!_serverglobals.disabledPlugins.includes(addon.id.slice(0,-3))) continue;
 		if (addon.on.startsWith('sio:')) {
 			socket.on(addon.on.slice(4), addon.run.bind(this, {socket, _serverglobals, io}));
 		}
